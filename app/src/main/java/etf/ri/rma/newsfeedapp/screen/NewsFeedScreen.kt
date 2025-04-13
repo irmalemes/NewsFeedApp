@@ -1,11 +1,15 @@
 package etf.ri.rma.newsfeedapp.screen
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.isSystemInDarkTheme
+import etf.ri.rma.newsfeedapp.ui.theme.LightPrimary
+import etf.ri.rma.newsfeedapp.ui.theme.DarkPrimary
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +57,9 @@ fun FilterChips(
     selectedCategory: String,
     onCategorySelected: (String) -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val selectedColor = if (isDark) DarkPrimary else LightPrimary
+
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -60,6 +67,15 @@ fun FilterChips(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(categories) { category ->
+            val testTag = when (category) {
+                "Sve" -> "filter_chip_all"
+                "Politika" -> "filter_chip_pol"
+                "Sport" -> "filter_chip_spo"
+                "Nauka/tehnologija" -> "filter_chip_sci"
+                "Moda" -> "filter_chip_none"
+                else -> "filter_chip_unknown"
+            }
+
             FilterChip(
                 selected = selectedCategory == category,
                 onClick = { onCategorySelected(category) },
@@ -67,13 +83,16 @@ fun FilterChips(
                     Text(
                         text = category,
                         color = if (selectedCategory == category)
-                            MaterialTheme.colorScheme.onPrimary
+                            Color.White
                         else
                             MaterialTheme.colorScheme.onSurface
                     )
                 },
+                modifier = Modifier
+                    .padding(end = 4.dp)
+                    .testTag(testTag),
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedContainerColor = selectedColor,
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
@@ -82,9 +101,14 @@ fun FilterChips(
 }
 
 
+
 @Composable
 fun NewsList(newsItems: List<NewsItem>) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("news_list")
+    ) {
         items(newsItems, key = { it.id }) { item ->
             if (item.isFeatured) {
                 FeaturedNewsCard(item)
@@ -95,8 +119,11 @@ fun NewsList(newsItems: List<NewsItem>) {
     }
 }
 
+
 @Composable
 fun StandardNewsCard(newsItem: NewsItem) {
+    val sourceColor = if (isSystemInDarkTheme()) DarkPrimary else LightPrimary
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -109,7 +136,7 @@ fun StandardNewsCard(newsItem: NewsItem) {
         Row(modifier = Modifier.padding(8.dp)) {
             Image(
                 painter = painterResource(id = R.drawable.news_placeholder),
-                contentDescription = null,
+                contentDescription = "image",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(80.dp)
@@ -137,7 +164,7 @@ fun StandardNewsCard(newsItem: NewsItem) {
                 Text(
                     text = "${newsItem.source} • ${newsItem.publishedDate}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = sourceColor
                 )
             }
         }
@@ -146,6 +173,8 @@ fun StandardNewsCard(newsItem: NewsItem) {
 
 @Composable
 fun FeaturedNewsCard(newsItem: NewsItem) {
+    val sourceColor = if (isSystemInDarkTheme()) DarkPrimary else LightPrimary
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,41 +184,42 @@ fun FeaturedNewsCard(newsItem: NewsItem) {
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Column {
+        Column(modifier = Modifier.padding(8.dp)) {
             Image(
                 painter = painterResource(id = R.drawable.news_placeholder),
-                contentDescription = null,
+                contentDescription = "image",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(150.dp)
             )
 
-            Column(modifier = Modifier.padding(8.dp)) {
-                Text(
-                    text = newsItem.title,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = newsItem.snippet,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${newsItem.source} • ${newsItem.publishedDate}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = newsItem.title,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = newsItem.snippet,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${newsItem.source} • ${newsItem.publishedDate}",
+                style = MaterialTheme.typography.labelSmall,
+                color = sourceColor
+            )
         }
     }
 }
+
 
 @Composable
 fun MessageCard(message: String) {
@@ -202,7 +232,6 @@ fun MessageCard(message: String) {
         Text(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
-            //color = MaterialTheme.colorScheme.onBackground
             color = Color(0xFFD32F2F)
         )
     }
