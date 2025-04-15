@@ -27,7 +27,9 @@ import etf.ri.rma.newsfeedapp.model.NewsItem
 @Composable
 fun NewsFeedScreen() {
     val allNews = remember { NewsData.getAllNews() }
+
     val categories = listOf("Sve", "Politika", "Sport", "Nauka/tehnologija", "Moda")
+
     var selectedCategory by remember { mutableStateOf("Sve") }
 
     val filteredNews = allNews.filter {
@@ -100,8 +102,6 @@ fun FilterChips(
     }
 }
 
-
-
 @Composable
 fun NewsList(newsItems: List<NewsItem>) {
     LazyColumn(
@@ -119,17 +119,21 @@ fun NewsList(newsItems: List<NewsItem>) {
     }
 }
 
-
 @Composable
 fun StandardNewsCard(newsItem: NewsItem) {
     val sourceColor = if (isSystemInDarkTheme()) DarkPrimary else LightPrimary
-
+    val backgroundColor = when (newsItem.category) {
+        "Sport" -> Color(0xFFADD8E6)
+        "Nauka/tehnologija" -> Color(0xFF90EE90)
+        "Politika" -> Color(0xFFE6E6FA)
+        else -> MaterialTheme.colorScheme.surface
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            colors = CardDefaults.cardColors(
+            containerColor = backgroundColor
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -180,7 +184,8 @@ fun FeaturedNewsCard(newsItem: NewsItem) {
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color(0xFFFFFACD)
+
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
@@ -220,7 +225,6 @@ fun FeaturedNewsCard(newsItem: NewsItem) {
     }
 }
 
-
 @Composable
 fun MessageCard(message: String) {
     Box(
@@ -236,3 +240,6 @@ fun MessageCard(message: String) {
         )
     }
 }
+
+
+
