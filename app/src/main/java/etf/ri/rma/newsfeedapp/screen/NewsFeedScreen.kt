@@ -1,54 +1,60 @@
 package etf.ri.rma.newsfeedapp.screen
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
-import etf.ri.rma.newsfeedapp.ui.theme.LightPrimary
-import etf.ri.rma.newsfeedapp.ui.theme.DarkPrimary
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import etf.ri.rma.newsfeedapp.R
-import etf.ri.rma.newsfeedapp.data.NewsData
 import etf.ri.rma.newsfeedapp.model.NewsItem
 
 @Composable
-fun NewsFeedScreen() {
-    val allNews = remember { NewsData.getAllNews() }
-
+fun NewsFeedScreen(
+    onMoreFiltersClick: () -> Unit,
+    onNewsClick: (String) -> Unit,
+    newsItems: List<NewsItem>,
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit
+) {
     val categories = listOf("Sve", "Politika", "Sport", "Nauka/tehnologija", "Moda")
-
-    var selectedCategory by remember { mutableStateOf("Sve") }
-
-    val filteredNews = allNews.filter {
-        selectedCategory == "Sve" || it.category == selectedCategory
-    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         FilterChips(
             categories = categories,
             selectedCategory = selectedCategory,
-            onCategorySelected = { selectedCategory = it }
+            onCategorySelected = onCategorySelected,
+            onMoreFiltersClick = onMoreFiltersClick
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (filteredNews.isEmpty()) {
-            MessageCard("Nema pronađenih vijesti u kategoriji \"$selectedCategory\"")
-        } else {
-            NewsList(newsItems = filteredNews)
+
+        LazyColumn(modifier = Modifier.fillMaxSize().testTag("news_list")) {
+            if (newsItems.isEmpty()) {
+                item {
+                    MessageCard("Nema pronađenih vijesti u kategoriji \"$selectedCategory\"")
+                }
+            } else {
+                items(newsItems, key = { it.id }) { item ->
+                    if (item.isFeatured) {
+                        FeaturedNewsCard(item = item, onClick = { onNewsClick(item.id) })
+                    } else {
+                        StandardNewsCard(item = item, onClick = { onNewsClick(item.id) })
+                    }
+                }
+            }
         }
     }
 }
@@ -57,84 +63,73 @@ fun NewsFeedScreen() {
 fun FilterChips(
     categories: List<String>,
     selectedCategory: String,
-    onCategorySelected: (String) -> Unit
+    onCategorySelected: (String) -> Unit,
+    onMoreFiltersClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val selectedColor = if (isDark) DarkPrimary else LightPrimary
+    Column {
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(categories) { category ->
+                val testTag = when (category) {
+                    "Sve" -> "filter_chip_all"
+                    "Politika" -> "filter_chip_pol"
+                    "Sport" -> "filter_chip_spo"
+                    "Nauka/tehnologija" -> "filter_chip_sci"
+                    "Moda" -> "filter_chip_none"
+                    else -> "filter_chip_unknown"
+                }
 
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(categories) { category ->
-            val testTag = when (category) {
-                "Sve" -> "filter_chip_all"
-                "Politika" -> "filter_chip_pol"
-                "Sport" -> "filter_chip_spo"
-                "Nauka/tehnologija" -> "filter_chip_sci"
-                "Moda" -> "filter_chip_none"
-                else -> "filter_chip_unknown"
-            }
-
-            FilterChip(
-                selected = selectedCategory == category,
-                onClick = { onCategorySelected(category) },
-                label = {
-                    Text(
-                        text = category,
-                        color = if (selectedCategory == category)
-                            Color.White
-                        else
-                            MaterialTheme.colorScheme.onSurface
-                    )
-                },
-                modifier = Modifier
-                    .padding(end = 4.dp)
-                    .testTag(testTag),
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = selectedColor,
-                    containerColor = MaterialTheme.colorScheme.surface
+                FilterChip(
+                    selected = selectedCategory == category,
+                    onClick = { onCategorySelected(category) },
+                    label = { Text(text = category) },
+                    modifier = Modifier.testTag(testTag)
                 )
-            )
+            }
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        FilterChip(
+            selected = false,
+            onClick = onMoreFiltersClick,
+            label = { Text("Više filtera ...") },
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .testTag("filter_chip_more")
+        )
     }
 }
 
 @Composable
-fun NewsList(newsItems: List<NewsItem>) {
-    LazyColumn(
+fun MessageCard(message: String) {
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .testTag("news_list")
+            .padding(16.dp)
+            .testTag("empty_list_message"),
+        contentAlignment = Alignment.Center
     ) {
-        items(newsItems, key = { it.id }) { item ->
-            if (item.isFeatured) {
-                FeaturedNewsCard(item)
-            } else {
-                StandardNewsCard(item)
-            }
-        }
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error
+        )
     }
 }
 
 @Composable
-fun StandardNewsCard(newsItem: NewsItem) {
-    val sourceColor = if (isSystemInDarkTheme()) DarkPrimary else LightPrimary
-    val backgroundColor = when (newsItem.category) {
-        "Sport" -> Color(0xFFADD8E6)
-        "Nauka/tehnologija" -> Color(0xFF90EE90)
-        "Politika" -> Color(0xFFE6E6FA)
-        else -> MaterialTheme.colorScheme.surface
-    }
+fun StandardNewsCard(item: NewsItem, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-            colors = CardDefaults.cardColors(
-            containerColor = backgroundColor
-        ),
+            .padding(vertical = 4.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(modifier = Modifier.padding(8.dp)) {
@@ -150,25 +145,13 @@ fun StandardNewsCard(newsItem: NewsItem) {
             Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = newsItem.title,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = newsItem.snippet,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Text(text = item.title, style = MaterialTheme.typography.titleSmall)
+                Text(text = item.snippet, style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${newsItem.source} • ${newsItem.publishedDate}",
+                    text = "${item.source} • ${item.publishedDate}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = sourceColor
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -176,17 +159,13 @@ fun StandardNewsCard(newsItem: NewsItem) {
 }
 
 @Composable
-fun FeaturedNewsCard(newsItem: NewsItem) {
-    val sourceColor = if (isSystemInDarkTheme()) DarkPrimary else LightPrimary
-
+fun FeaturedNewsCard(item: NewsItem, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFFACD)
-
-        ),
+            .padding(vertical = 4.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -201,45 +180,14 @@ fun FeaturedNewsCard(newsItem: NewsItem) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = newsItem.title,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = newsItem.snippet,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Text(text = item.title, style = MaterialTheme.typography.titleMedium)
+            Text(text = item.snippet, style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "${newsItem.source} • ${newsItem.publishedDate}",
+                text = "${item.source} • ${item.publishedDate}",
                 style = MaterialTheme.typography.labelSmall,
-                color = sourceColor
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
 }
-
-@Composable
-fun MessageCard(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFFD32F2F)
-        )
-    }
-}
-
-
-

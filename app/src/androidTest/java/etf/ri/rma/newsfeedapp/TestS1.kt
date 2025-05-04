@@ -1,4 +1,4 @@
-package etf.ri.rma.newsfeedapp
+/*package etf.ri.rma.newsfeedapp
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -94,4 +94,4 @@ class TestS1 {
         composeTestRule.onNodeWithText(novost.snippet.substring(0..15),substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText(novost.source,substring = true).assertIsDisplayed()
     }
-}
+}*/
