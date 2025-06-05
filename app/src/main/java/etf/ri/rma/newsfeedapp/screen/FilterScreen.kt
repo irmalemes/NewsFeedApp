@@ -29,18 +29,19 @@ fun FilterScreen(
     var unwantedWords by remember { mutableStateOf(listOf<String>()) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text(text = "Kategorije", style = MaterialTheme.typography.titleMedium)
+        Text("Kategorije", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
 
         FilterChips(
             categories = categories,
             selectedCategory = selectedCategory,
             onCategorySelected = onCategorySelected,
-            onMoreFiltersClick = {}
+            onMoreFiltersClick = {} // Nema akcije za "više filtera" ovdje
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Date pickeri
         val context = LocalContext.current
         val formatter = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
         val calendarStart = Calendar.getInstance()
@@ -115,9 +116,7 @@ fun FilterScreen(
         }
 
         LazyColumn(modifier = Modifier.testTag("filter_unwanted_list")) {
-            items(unwantedWords) { word ->
-                Text(text = word)
-            }
+            items(unwantedWords) { word -> Text(text = word) }
         }
 
         Spacer(modifier = Modifier.height(24.dp))

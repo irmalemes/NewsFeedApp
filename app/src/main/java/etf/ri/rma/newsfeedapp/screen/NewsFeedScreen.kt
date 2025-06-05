@@ -1,33 +1,43 @@
 package etf.ri.rma.newsfeedapp.screen
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import etf.ri.rma.newsfeedapp.R
+import etf.ri.rma.newsfeedapp.data.NewsDAO
 import etf.ri.rma.newsfeedapp.model.NewsItem
+import kotlinx.coroutines.launch
 
 @Composable
 fun NewsFeedScreen(
     onMoreFiltersClick: () -> Unit,
     onNewsClick: (String) -> Unit,
-    newsItems: List<NewsItem>,
     selectedCategory: String,
     onCategorySelected: (String) -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+    var newsItems by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
+
+    // Učitavanje vijesti pri promjeni kategorije
+    LaunchedEffect(selectedCategory) {
+        newsItems = NewsDAO.getTopStoriesByCategory(selectedCategory)
+    }
+
     val categories = listOf("Sve", "Politika", "Sport", "Nauka/tehnologija", "Moda")
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -40,18 +50,17 @@ fun NewsFeedScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-
         LazyColumn(modifier = Modifier.fillMaxSize().testTag("news_list")) {
             if (newsItems.isEmpty()) {
                 item {
                     MessageCard("Nema pronađenih vijesti u kategoriji \"$selectedCategory\"")
                 }
             } else {
-                items(newsItems, key = { it.id }) { item ->
+                items(newsItems, key = { it.uuid }) { item ->
                     if (item.isFeatured) {
-                        FeaturedNewsCard(item = item, onClick = { onNewsClick(item.id) })
+                        FeaturedNewsCard(item = item, onClick = { onNewsClick(item.uuid) })
                     } else {
-                        StandardNewsCard(item = item, onClick = { onNewsClick(item.id) })
+                        StandardNewsCard(newsItem = item, onClick = { onNewsClick(item.uuid) })
                     }
                 }
             }
@@ -123,37 +132,34 @@ fun MessageCard(message: String) {
 }
 
 @Composable
-fun StandardNewsCard(item: NewsItem, onClick: () -> Unit) {
+fun StandardNewsCard(
+    newsItem: NewsItem,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
+            .padding(8.dp)
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Row(modifier = Modifier.padding(8.dp)) {
-            Image(
-                painter = painterResource(id = R.drawable.news_placeholder),
-                contentDescription = "image",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(4.dp))
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(text = item.title, style = MaterialTheme.typography.titleSmall)
-                Text(text = item.snippet, style = MaterialTheme.typography.bodySmall)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${item.source} • ${item.publishedDate}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+        Column(modifier = Modifier.padding(16.dp)) {
+            newsItem.imageUrl?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(8.dp))
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             }
+
+            Text(newsItem.title, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(newsItem.snippet, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -169,9 +175,19 @@ fun FeaturedNewsCard(item: NewsItem, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
-            Image(
+            item.imageUrl?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            } ?: Image(
                 painter = painterResource(id = R.drawable.news_placeholder),
-                contentDescription = "image",
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()

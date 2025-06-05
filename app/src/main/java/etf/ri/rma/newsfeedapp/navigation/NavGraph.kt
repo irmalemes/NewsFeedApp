@@ -4,12 +4,15 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.navigation.*
-import androidx.navigation.compose.*
-import etf.ri.rma.newsfeedapp.data.NewsData
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import etf.ri.rma.newsfeedapp.data.NewsDAO
 import etf.ri.rma.newsfeedapp.model.NewsItem
-import etf.ri.rma.newsfeedapp.screen.*
+import etf.ri.rma.newsfeedapp.screen.FilterScreen
+import etf.ri.rma.newsfeedapp.screen.NewsDetailsScreen
+import etf.ri.rma.newsfeedapp.screen.NewsFeedScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -18,47 +21,43 @@ fun AppNavGraph(navController: NavHostController) {
     var dateRange by rememberSaveable { mutableStateOf<Pair<String?, String?>>(null to null) }
     var unwantedWords by rememberSaveable { mutableStateOf(listOf<String>()) }
 
-    val allNews = NewsData.getAllNews()
-
-    val filteredNews = allNews.filter { item ->
-        val categoryMatch = selectedCategory == "Sve" || item.category == selectedCategory
-        val dateMatch = (dateRange.first == null || item.publishedDate >= (dateRange.first ?: "")) &&
-                (dateRange.second == null || item.publishedDate <= (dateRange.second ?: ""))
-        val unwantedMatch = unwantedWords.none { word ->
-            item.title.contains(word, ignoreCase = true) || item.snippet.contains(word, ignoreCase = true)
+    val filteredNews = remember(selectedCategory, dateRange, unwantedWords) {
+        NewsDAO.getAllStories().filter { item ->
+            val categoryMatch = selectedCategory == "Sve" || item.category == selectedCategory
+            val dateMatch = (dateRange.first == null || item.publishedDate >= (dateRange.first ?: "")) &&
+                    (dateRange.second == null || item.publishedDate <= (dateRange.second ?: ""))
+            val unwantedMatch = unwantedWords.none { word ->
+                item.title.contains(word, ignoreCase = true) || item.snippet.contains(word, ignoreCase = true)
+            }
+            categoryMatch && dateMatch && unwantedMatch
         }
-        categoryMatch && dateMatch && unwantedMatch
     }
 
-    val saveableStateHolder = rememberSaveableStateHolder()
-
     NavHost(navController = navController, startDestination = "home") {
-        composable("home") { backStackEntry ->
-            saveableStateHolder.SaveableStateProvider(backStackEntry.id) {
-                NewsFeedScreen(
-                    onMoreFiltersClick = { navController.navigate("filters") },
-                    onNewsClick = { id -> navController.navigate("details/$id") },
-                    newsItems = filteredNews,
-                    selectedCategory = selectedCategory,
-                    onCategorySelected = { selectedCategory = it }
-                )
-            }
+        composable("home") {
+            NewsFeedScreen(
+                onMoreFiltersClick = { navController.navigate("filters") },
+                onNewsClick = { uuid -> navController.navigate("details/$uuid") },
+                //newsItems = filteredNews,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { selectedCategory = it }
+            )
         }
+
         composable("filters") {
             FilterScreen(
                 selectedCategory = selectedCategory,
                 onCategorySelected = { selectedCategory = it },
                 onDateRangeSelected = { dateRange = it },
                 onUnwantedWordsChanged = { unwantedWords = it },
-                onApplyFilters = {},
+                onApplyFilters = { navController.popBackStack() },
                 navController = navController
             )
         }
+
         composable("details/{id}") { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("id")
-            if (id != null) {
-                NewsDetailsScreen(newsId = id, navController = navController)
-            }
+            val uuid = backStackEntry.arguments?.getString("id") ?: return@composable
+            NewsDetailsScreen(newsId = uuid, navController = navController)
         }
     }
 }

@@ -54,7 +54,7 @@ fun NavigationComponent() {
             NewsFeedScreen(
                 onMoreFiltersClick = { navController.navigate("filters") },
                 onNewsClick = { id -> navController.navigate("details/$id") },
-                newsItems = filteredNews,
+               // newsItems = filteredNews,
                 selectedCategory = selectedCategory,
                 onCategorySelected = { selectedCategory = it }
             )
