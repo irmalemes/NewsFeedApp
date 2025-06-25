@@ -27,10 +27,25 @@ fun NewsDetailsScreen(newsId: String, navController: NavController) {
     LaunchedEffect(newsId) {
         val allNews = NewsDAO.getAllStories()
         news = allNews.find { it.uuid == newsId }
-        news?.let {
-            relatedNews = NewsDAO.getSimilarStories(it.uuid)
-            if (it.imageUrl != null) {
-                imageTags = ImageDAO.getTags(it.imageUrl)
+
+        news?.let { item ->
+            relatedNews = NewsDAO.getSimilarStories(item.uuid)
+
+            val dao = NewsDAO.getSavedNewsDAO()
+            val localId = dao?.getIdByUUID(item.uuid)
+
+            if (localId != null) {
+                val localTags = dao.getTags(localId)
+                if (localTags.isNotEmpty()) {
+                    imageTags = localTags
+                } else {
+                    // Nema tagova u bazi, dohvatiti sa web-a
+                    if (item.imageUrl != null) {
+                        val downloadedTags = ImageDAO.getTags(item.imageUrl)
+                        imageTags = downloadedTags
+                        dao.addTags(downloadedTags, localId)
+                    }
+                }
             }
         }
     }

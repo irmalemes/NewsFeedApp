@@ -23,8 +23,10 @@ object NewsDAO {
     private val mutex = Mutex()
 
     private const val CACHE_EXPIRY_MS = 30_000L
-
     private data class CachedNews(val data: List<NewsItem>, val timestamp: Long)
+
+    private var savedNewsDAO: SavedNewsDAO? = null
+
 
     init {
         allNewsCache.addAll(NewsData.getAllNews().map {
@@ -40,7 +42,6 @@ object NewsDAO {
         topStoriesCache.clear()
         similarStoriesCache.clear()
     }
-
     suspend fun getTopStoriesByCategory(category: String): List<NewsItem> {
         val currentTime = System.currentTimeMillis()
 
@@ -67,6 +68,23 @@ object NewsDAO {
         return if (response?.isSuccessful == true) {
             val news = response.body()?.news ?: emptyList()
             topStoriesCache[category] = CachedNews(news, currentTime)
+
+            // Spremanje vijesti i tagova u lokalnu bazu
+            savedNewsDAO?.let { dao ->
+                news.forEach { item ->
+                    val wasSaved = dao.saveNews(item)
+                    if (wasSaved) {
+                        val newsId = dao.getIdByUUID(item.uuid)
+                        try {
+                            val tags = ImageDAO.getTags(ImaggaApiConstants.IMAGE_BASE_URL + item.imageUrl)
+                            dao.addTags(tags, newsId)
+                        } catch (_: Exception) {
+                            // Ako padne dohvat tagova, samo ignoriši
+                        }
+                    }
+                }
+            }
+
             news
         } else {
             emptyList()
@@ -74,9 +92,21 @@ object NewsDAO {
     }
 
 
+
+    fun setSavedNewsDAO(dao: SavedNewsDAO) {
+        savedNewsDAO = dao
+    }
+
+    fun getSavedNewsDAO(): SavedNewsDAO? {
+        return savedNewsDAO
+    }
+
+
+
     suspend fun getSimilarStories(uuid: String): List<NewsItem> {
         if (!isValidUUID(uuid)) throw InvalidUUIDException("UUID $uuid nije validan")
 
+        // 1. Pokušaj sa API-em
         apiService?.let { service ->
             return try {
                 val response = service.getSimilarStories(uuid)
@@ -90,8 +120,50 @@ object NewsDAO {
             }
         }
 
-        return localSimilarStories(uuid)
+        // 2. Lokalna logika ako API ne radi
+        return savedNewsDAO?.let { dao ->
+            try {
+                val newsId = dao.getIdByUUID(uuid)
+                val tags = dao.getTags(newsId).take(2) // uzimamo max 2 taga
+
+                val candidates = dao.getSimilarNews(tags) // vijesti koje dijele makar jedan tag
+                    .filter { it.uuid != uuid } // izbacimo originalnu
+                    .sortedByDescending { it.publishedDate } // najnovije prvo
+                    .take(2) // maksimalno 2 vijesti
+
+                candidates
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
     }
+
+
+    suspend fun getTagsForNews(news: NewsItem): List<String> {
+        val dao = savedNewsDAO ?: return emptyList()
+        val newsId = dao.getIdByUUID(news.uuid)
+
+        val existingTags = dao.getTags(newsId)
+        if (existingTags.isNotEmpty()) {
+            return existingTags
+        }
+
+        // Ako nema u bazi – pozivaj Imagga API
+        val imageUrl = ImaggaApiConstants.IMAGE_BASE_URL + news.imageUrl
+        val tagsFromApi = try {
+            ImageDAO.getTags(imageUrl)
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+        if (tagsFromApi.isNotEmpty()) {
+            dao.addTags(tagsFromApi, newsId)
+        }
+
+        return tagsFromApi
+    }
+
+
 
     fun getAllStories(): List<NewsItem> {
         return allNewsCache.toList()

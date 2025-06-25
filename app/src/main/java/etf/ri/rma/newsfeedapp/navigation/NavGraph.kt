@@ -17,6 +17,16 @@ import etf.ri.rma.newsfeedapp.screen.NewsFeedScreen
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavGraph(navController: NavHostController) {
+
+    LaunchedEffect(Unit) {
+        val dao = NewsDAO.getSavedNewsDAO()
+        val allNews = NewsDAO.getAllStories()
+
+        allNews.forEach { newsItem ->
+            dao?.saveNews(newsItem)
+        }
+    }
+
     var selectedCategory by rememberSaveable { mutableStateOf("Sve") }
     var dateRange by rememberSaveable { mutableStateOf<Pair<String?, String?>>(null to null) }
     var unwantedWords by rememberSaveable { mutableStateOf(listOf<String>()) }
